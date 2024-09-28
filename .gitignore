@@ -1,3 +1,4 @@
 .vscode
 .venv
-test.db
+anime.db
+__pycache__
