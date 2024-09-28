@@ -1,0 +1,59 @@
+query Recommendations(
+    $search: String,
+    $page: Int,
+    $genre_in: [String], 
+    $averageScore_greater: Int, 
+    $status: MediaStatus, 
+    $episodes_lesser: Int,
+    $format_in: [MediaFormat]
+    ) {
+  Page(page: $page, perPage: 50) {
+    pageInfo {
+      total
+      perPage
+      currentPage
+      lastPage
+      hasNextPage
+    }
+    media(
+      search: $search
+      type: ANIME
+      genre_in: $genre_in
+      averageScore_greater: $averageScore_greater
+      status: $status
+      episodes_lesser: $episodes_lesser
+      format_in: $format_in
+    ) {
+      id
+      title {
+        english
+        userPreferred
+      }
+      episodes
+      type
+      format
+      genres
+      description
+      season
+      duration
+      trailer {
+        id
+        site
+      }
+      averageScore
+      popularity
+      studios {
+        edges {
+          id
+          node {
+            name
+          }
+        }
+      }
+      startDate {
+        year
+      }
+      status
+    }
+  }
+}
