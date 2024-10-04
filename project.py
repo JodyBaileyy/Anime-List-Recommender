@@ -4,7 +4,7 @@ import argparse
 
 from tabulate import tabulate
 from sql_queries import create_table_query, add_anime_query, watch_list_query, update_query, delete_query
-from constants import VALID_FORMATS, VALID_GENRES, VALID_PROPERTIES, VALID_STATUSES
+from constants import VALID_FORMATS, VALID_GENRES, VALID_PROPERTIES, VALID_STATUSES, VALID_MEDIA_STATUSES
 from helpers import (
     get_single_anime,
     paginated_response,
@@ -16,10 +16,9 @@ from helpers import (
     table_record_for_viewing
 )
 
-conn = sqlite3.connect("anime.db")
-
 
 def main():
+    conn = sqlite3.connect("anime.db")
     conn.execute(create_table_query)
     parser = argparse.ArgumentParser(
         prog="WatchListRecommender", description="Add / Update your own anime watch list & reccommend new anime to watch")
@@ -39,27 +38,28 @@ def main():
                         type=int, help="recommend: the minimum scorevof the anime (1-100)")
     parser.add_argument("-me", "--max-episodes", action="store", nargs="?", type=int,
                         help="recommend: the maximum amount of episode the anime is allowed to have")
-    parser.add_argument("-f", "--formats", action="extend", nargs="*", choices=VALID_FORMATS, default=["TV"],
+    parser.add_argument("-f", "--formats", action="extend", nargs="*", choices=VALID_FORMATS,
                         type=str.upper, help="recommend: the media formats for the anime")
-    parser.add_argument("-s", "--status", action="store", nargs="?", type=str,
-                        default="FINISHED", help="recommend: the status of the anime")
+    parser.add_argument("-s", "--status", action="store", nargs="?", type=str.upper, choices=VALID_MEDIA_STATUSES,
+                        help="recommend: the status of the anime")
 
     args = parser.parse_args()
 
     match args.mode:
         case "watchlist":
-            handle_watch_list(args)
+            handle_watch_list(conn, args)
         case "recommend":
-            handle_recommend(args)
+            handle_recommend(conn, args)
 
     conn.close()
 
 
-def handle_recommend(args):
+def handle_recommend(db, args):
     if args.list or args.update or args.add or args.delete:
         invalid_flag_msg = "A watchlist flag was provided for the recommend mode. Valid recommend mode flags: ['-g', '--genres', '-ms', '--min-score', '-me', '--max-episodes', '-f', '--formats', '-s', '--status']"
         return print(invalid_flag_msg)
     get_recommended_anime(
+        db=db,
         genres=args.genres,
         min_score=args.min_score,
         max_episodes=args.max_episodes,
@@ -68,13 +68,28 @@ def handle_recommend(args):
     )
 
 
-def get_recommended_anime(genres, min_score, max_episodes, formats, status):
+def handle_watch_list(db, args):
+    if args.genres or args.formats or args.status or args.min_score or args.max_episodes:
+        invalid_flag_msg = "A recommend flag was provided for the watchlist mode. Valid watchlist mode flags: ['-l', '--list', '-a', '--add', '-u', '--update', '-d', '--delete']"
+        return print(invalid_flag_msg)
+
+    if args.list:
+        view_watch_list(db)
+    elif args.add:
+        add_anime_to_watch_list(db)
+    elif args.update:
+        update_anime_in_watch_list(db)
+    elif args.delete:
+        delete_anime_in_watch_list(db)
+
+
+def get_recommended_anime(db, genres, min_score, max_episodes, formats, status):
     variables = {
         "genre_in": genres,
         "averageScore_greater": min_score,
         "episodes_lesser": max_episodes,
-        "format_in": formats,
-        "status": status
+        "format_in": formats or ["TV"],
+        "status": status or "FINISHED"
     }
 
     filtered_variables = {key: value for key,
@@ -88,8 +103,8 @@ def get_recommended_anime(genres, min_score, max_episodes, formats, status):
     if len(response) == 0:
         return print("No anime found with current options. Try narrowing down the criteria given")
 
-    filtered_response = filter_out_watched_anime(response)
-
+    filtered_response = filter_out_watched_anime(db, response)
+    
     if len(filtered_response) == 0:
         return print("All anime that match the given criteria are included in your watch list")
 
@@ -98,12 +113,12 @@ def get_recommended_anime(genres, min_score, max_episodes, formats, status):
     print(recommended_anime)
 
     while True:
-        add_answer = input("Add anime to your watch list?: ").strip().lower()
+        add_answer = input("Add anime to your watch list? ").strip().lower()
 
         if add_answer in ["y", "yes"]:
-            conn.execute(add_anime_query, (random_anime["id"], get_anime_title(
+            db.execute(add_anime_query, (random_anime["id"], get_anime_title(
                 random_anime["title"]), None, "PLAN TO WATCH"))
-            conn.commit()
+            db.commit()
 
             return print(f"Added {get_anime_title(random_anime["title"])} to your watch list")
         elif add_answer in ["n", "no"]:
@@ -113,29 +128,14 @@ def get_recommended_anime(genres, min_score, max_episodes, formats, status):
                 "Invalid option given. Valid options: ['y', 'yes', 'n', 'no']")
 
 
-def filter_out_watched_anime(all_anime):
-    watch_list_anime_ids = [row[2] for row in conn.execute(watch_list_query)]
+def filter_out_watched_anime(db, all_anime):
+    watch_list_anime_ids = [row[2] for row in db.execute(watch_list_query)]
 
     return list(filter(lambda anime: anime["id"] not in watch_list_anime_ids, all_anime))
 
 
-def handle_watch_list(args):
-    if args.genres or args.formats or args.status or args.min_score or args.max_score:
-        invalid_flag_msg = "A recommend flag was provided for the watchlist mode. Valid watchlist mode flags: ['-l', '--list', '-a', '--add', '-u', '--update', '-d', '--delete']"
-        return print(invalid_flag_msg)
-
-    if args.list:
-        view_watch_list()
-    elif args.add:
-        add_anime_to_watch_list()
-    elif args.update:
-        update_anime_in_watch_list()
-    elif args.delete:
-        delete_anime_in_watch_list()
-
-
-def delete_anime_in_watch_list():
-    anime = view_watch_list_simple()
+def delete_anime_in_watch_list(db):
+    anime = view_watch_list_simple(db)
 
     while True:
         error_msg = "Please provide a valid option"
@@ -160,8 +160,8 @@ def delete_anime_in_watch_list():
                                    anime_name}? ").lower()
 
         if confirmed_response in ["y", "yes"]:
-            conn.execute(delete_query, [str(entry_to_delete[0])])
-            conn.commit()
+            db.execute(delete_query, [str(entry_to_delete[0])])
+            db.commit()
 
             print(f"Successfully deleted {anime_name} from your watch list")
             break
@@ -173,9 +173,15 @@ def delete_anime_in_watch_list():
             break
 
 
-def view_watch_list():
-    cursor = conn.execute(watch_list_query)
+def view_watch_list(db):
+    cursor = db.execute(watch_list_query)
     anime = [row for row in cursor]
+    
+    print(anime)
+    
+    if len(anime) == 0:
+        return print("Watchlist is currently empty")
+    
     anime_details = [get_single_anime(row[2]) for row in anime]
     table_headers = ["", "Name", "Status", "Score",
                      "Type", "Episodes", "Released", "Season", "Studio"]
@@ -187,8 +193,8 @@ def view_watch_list():
     print(tabulate(table_records, headers=table_headers, tablefmt="presto"))
 
 
-def view_watch_list_simple():
-    cursor = conn.execute(watch_list_query)
+def view_watch_list_simple(db):
+    cursor = db.execute(watch_list_query)
     anime = []
     table_records = []
     table_headers = ["", "Name", "Status", "Score"]
@@ -203,8 +209,8 @@ def view_watch_list_simple():
     return anime
 
 
-def update_anime_in_watch_list():
-    anime = view_watch_list_simple()
+def update_anime_in_watch_list(db):
+    anime = view_watch_list_simple(db)
 
     while True:
         error_msg = "Please provide a valid option"
@@ -261,16 +267,15 @@ def update_anime_in_watch_list():
 
     anime_to_update = anime[anime_num - 1]
 
-    conn.execute(update_query.format(column=column.lower()),
+    db.execute(update_query.format(column=column.lower()),
                  (new_value, anime_to_update[0]))
-    conn.commit()
+    db.commit()
 
     print(
         f"Successfully updated {anime_to_update[1]}'s {column.lower()} to {new_value}")
 
 
-
-def add_anime_to_watch_list():
+def add_anime_to_watch_list(db):
     with open("./queries/media_pages.graphql", "r") as file:
         query = file.read()
 
@@ -341,8 +346,8 @@ def add_anime_to_watch_list():
     media_id = anime["id"]
     title = get_anime_title(anime["title"])
 
-    conn.execute(add_anime_query, (media_id, title, score, status))
-    conn.commit()
+    db.execute(add_anime_query, (media_id, title, score, status))
+    db.commit()
 
     print(f"Added {title} to watch list")
 

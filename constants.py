@@ -13,6 +13,14 @@ VALID_PROPERTIES = [
     "STATUS"
 ]
 
+VALID_MEDIA_STATUSES = [
+    "FINISHED",
+    "RELEASING",
+    "NOT_YET_RELEASED",
+    "CANCELLED",
+    "HIATUS"
+]
+
 VALID_GENRES = [
     "Action",
     "Adventure",
