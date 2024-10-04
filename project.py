@@ -176,9 +176,7 @@ def delete_anime_in_watch_list(db):
 def view_watch_list(db):
     cursor = db.execute(watch_list_query)
     anime = [row for row in cursor]
-    
-    print(anime)
-    
+        
     if len(anime) == 0:
         return print("Watchlist is currently empty")
     
