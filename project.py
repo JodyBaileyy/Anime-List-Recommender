@@ -135,7 +135,12 @@ def filter_out_watched_anime(db, all_anime):
 
 
 def delete_anime_in_watch_list(db):
-    anime = view_watch_list_simple(db)
+    anime = get_all_watch_list_anime(db)
+
+    if len(anime) == 0:
+        return print("No watch list entries to delete")
+    
+    view_watch_list_simple(anime)
 
     while True:
         error_msg = "Please provide a valid option"
@@ -191,24 +196,27 @@ def view_watch_list(db):
     print(tabulate(table_records, headers=table_headers, tablefmt="presto"))
 
 
-def view_watch_list_simple(db):
+def get_all_watch_list_anime(db):
     cursor = db.execute(watch_list_query)
-    anime = []
-    table_records = []
+    
+    return [row for row in cursor]
+
+
+def view_watch_list_simple(records):
+    table_records = [table_record_for_viewing(index, row) for index, row in enumerate(records)]
     table_headers = ["", "Name", "Status", "Score"]
-
-    for index, row in enumerate(cursor):
-        table_records.append(table_record_for_viewing(index, row))
-        anime.append(row)
-
+    
     print(tabulate(table_records, headers=table_headers,
           tablefmt="presto"), end="\n\n")
-
-    return anime
-
+    
 
 def update_anime_in_watch_list(db):
-    anime = view_watch_list_simple(db)
+    anime = get_all_watch_list_anime(db)
+
+    if len(anime) == 0:
+        return print("No watch list entries to update")
+    
+    view_watch_list_simple(anime)
 
     while True:
         error_msg = "Please provide a valid option"

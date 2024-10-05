@@ -1,8 +1,8 @@
 import unittest
 
 from unittest.mock import Mock, call, patch
-from project import get_recommended_anime, view_watch_list, add_anime_to_watch_list
-from sql_queries import watch_list_query, add_anime_query
+from project import get_recommended_anime, view_watch_list, add_anime_to_watch_list, update_anime_in_watch_list
+from sql_queries import watch_list_query, add_anime_query, update_query
 
 
 class BaseWatchListTest(unittest.TestCase):
@@ -291,4 +291,95 @@ class AddToWatchList(BaseWatchListTest):
         
 
 class UpdateEntryInWatchList(BaseWatchListTest):
-    pass
+    @patch("project.table_record_for_viewing")
+    @patch("project.tabulate")
+    @patch("builtins.print")
+    @patch("builtins.input")
+    def test_happy_path(self, mock_input, mock_print, mock_tabulate, mock_table_record):
+        """Testing the path where the expected input is given"""
+        
+        mocked_db_anime = [
+            (1, 'Cowboy Bebop', 10, None, 'PLAN TO WATCH'),
+            (2, 'ERASED', 20, None, 'PLAN TO WATCH'),
+            (3, "Naruto", 30, None, 'PLAN TO WATCH'),
+            (4, "Demon Slayer", 40, None, 'PLAN TO WATCH')
+        ]
+        
+        mock_table_record.side_effect = mocked_db_anime
+        mock_input.side_effect = ["2", "score", "70"]
+        db_mock = self.mocked_db(mocked_db_anime)
+        
+        update_anime_in_watch_list(db_mock)
+        
+        assert mocked_db_anime in mock_tabulate.call_args.args
+        db_mock.commit.assert_called_once()
+        db_mock.execute.assert_called_with(
+            update_query.format(column="score"), 
+            (70, 2)
+        )
+        mock_print.assert_has_calls([
+            call(mock_tabulate(), end='\n\n'),
+            call(),
+            call("Successfully updated ERASED's score to 70")
+        ])
+    
+    @patch("project.table_record_for_viewing")
+    @patch("project.tabulate")
+    @patch("builtins.print")
+    @patch("builtins.input")
+    def test_dreaded_path(self, mock_input, mock_print, mock_tabulate, mock_table_record):
+        """Testing the path where unexpected input is provided"""
+        
+        mocked_db_anime = [
+            (1, 'Cowboy Bebop', 10, None, 'PLAN TO WATCH'),
+            (2, 'ERASED', 20, None, 'PLAN TO WATCH'),
+            (3, "Naruto", 30, None, 'PLAN TO WATCH'),
+            (4, "Demon Slayer", 40, None, 'PLAN TO WATCH')
+        ]
+        
+        mock_table_record.side_effect = mocked_db_anime
+        mock_input.side_effect = [
+            "Invalid Option",
+            "23",
+            "1",
+            "Invalid Property", 
+            "status",
+            "Invalid Status",
+            "Completed",
+            ]
+        db_mock = self.mocked_db(mocked_db_anime)
+        
+        update_anime_in_watch_list(db_mock)
+
+        assert mock_input.call_count == 7
+        assert mocked_db_anime in mock_tabulate.call_args.args
+        db_mock.commit.assert_called_once()
+        db_mock.execute.assert_called_with(
+            update_query.format(column="status"), 
+            ("COMPLETED", 1)
+        )
+        mock_print.assert_has_calls([
+            call(mock_tabulate(), end='\n\n'),
+            call("Please provide a valid option"),
+            call("Please provide a valid option"),
+            call("Invalid property provided. Valid Properties: ['score', 'status']"),
+            call("Invalid status provided. Valid statuses: ['completed', 'on hold', 'plan to watch', 'dropped', 'watching']"),
+            call(),
+            call("Successfully updated Cowboy Bebop's status to COMPLETED")
+        ])
+       
+    @patch("builtins.print") 
+    def test_no_entries_to_update(self, mock_print):
+        db_mock = self.mocked_db(())
+        
+        update_anime_in_watch_list(db_mock)
+        
+        db_mock.commit.assert_not_called()
+        db_mock.execute.assert_called_with(watch_list_query)
+        mock_print.assert_called_once_with("No watch list entries to update")
+        
+
+        
+        
+        
+        
