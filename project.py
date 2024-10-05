@@ -104,7 +104,7 @@ def get_recommended_anime(db, genres, min_score, max_episodes, formats, status):
         return print("No anime found with current options. Try narrowing down the criteria given")
 
     filtered_response = filter_out_watched_anime(db, response)
-    
+
     if len(filtered_response) == 0:
         return print("All anime that match the given criteria are included in your watch list")
 
@@ -176,10 +176,10 @@ def delete_anime_in_watch_list(db):
 def view_watch_list(db):
     cursor = db.execute(watch_list_query)
     anime = [row for row in cursor]
-        
+
     if len(anime) == 0:
         return print("Watchlist is currently empty")
-    
+
     anime_details = [get_single_anime(row[2]) for row in anime]
     table_headers = ["", "Name", "Status", "Score",
                      "Type", "Episodes", "Released", "Season", "Studio"]
@@ -266,7 +266,7 @@ def update_anime_in_watch_list(db):
     anime_to_update = anime[anime_num - 1]
 
     db.execute(update_query.format(column=column.lower()),
-                 (new_value, anime_to_update[0]))
+               (new_value, anime_to_update[0]))
     db.commit()
 
     print(
@@ -323,10 +323,11 @@ def add_anime_to_watch_list(db):
             f"Invalid status provided. Valid statuses: {list(map(lambda status: status.lower(), VALID_STATUSES))}")
 
     while True:
-        error_msg = "Invalid Score Provided"
+        error_msg = "Invalid Score Provided"\
+
         try:
             score = int(
-                input('Score of anime from 1 - 100 (optional): ').strip())
+                input('Score of anime from 1 - 100 (optional. Press crtl + d to skip): ').strip())
 
             if score > 100 or score < 0:
                 print(error_msg)

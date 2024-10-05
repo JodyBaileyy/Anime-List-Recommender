@@ -53,8 +53,8 @@ def formatted_score(score):
 
 def format_response_for_add(index, record):
     title = get_anime_title(record["title"])
-    score = record['averageScore']
-    year = record['startDate']['year'] or "unreleased"
+    score = record["averageScore"]
+    year = record["startDate"]["year"] or "unreleased"
 
     return [index + 1, title, formatted_score(score), year]
 
