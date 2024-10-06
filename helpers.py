@@ -3,7 +3,9 @@ import random
 import re
 
 from termcolor import colored
+from tabulate import tabulate
 from constants import URL
+from sql_queries import watch_list_query
 
 def paginated_response(query, variables):
     data = []
@@ -24,6 +26,25 @@ def paginated_response(query, variables):
         has_next_page = response["data"]["Page"]["pageInfo"]["hasNextPage"]
 
     return data
+
+def filter_out_watched_anime(db, all_anime):
+    watch_list_anime_ids = [row[2] for row in db.execute(watch_list_query)]
+
+    return list(filter(lambda anime: anime["id"] not in watch_list_anime_ids, all_anime))
+
+def get_all_watch_list_anime(db):
+    cursor = db.execute(watch_list_query)
+
+    return [row for row in cursor]
+
+
+def view_watch_list_simple(records):
+    table_records = [table_record_for_viewing(
+        index, row) for index, row in enumerate(records)]
+    table_headers = ["", "Name", "Status", "Score"]
+
+    print(tabulate(table_records, headers=table_headers,
+          tablefmt="presto"), end="\n\n")
 
 
 def get_single_anime(id):

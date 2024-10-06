@@ -4,7 +4,24 @@ import argparse
 
 from tabulate import tabulate
 from sql_queries import create_table_query, add_anime_query, watch_list_query, update_query, delete_query
-from constants import VALID_FORMATS, VALID_GENRES, VALID_PROPERTIES, VALID_STATUSES, VALID_MEDIA_STATUSES
+from constants import (
+    VALID_FORMATS,
+    VALID_GENRES,
+    VALID_PROPERTIES,
+    VALID_STATUSES,
+    VALID_MEDIA_STATUSES,
+    INVALID_OPTION_MSG,
+    INVALID_CONFIRMATION_MSG,
+    WATCH_LIST_EMPTY_MSG,
+    INVALID_WATCH_LIST_FLAG_MSG,
+    INVALID_RECOMMEND_FLAG_MSG,
+    INVALID_PROPERTIES_MSG,
+    INVALID_STATUS_MSG,
+    INVALID_SCORE_MSG,
+    NO_RECOMMENDATIONS_FOUND_MSG,
+    NO_UNIQUE_RECOMMENDATION_FOUND_MSG,
+    CANCEL_DELETE_MSG
+)
 from helpers import (
     get_single_anime,
     paginated_response,
@@ -13,7 +30,9 @@ from helpers import (
     formatted_recommended_anime,
     get_random_anime,
     format_record_for_watch_list,
-    table_record_for_viewing
+    filter_out_watched_anime,
+    get_all_watch_list_anime,
+    view_watch_list_simple,
 )
 
 
@@ -56,8 +75,7 @@ def main():
 
 def handle_recommend(db, args):
     if args.list or args.update or args.add or args.delete:
-        invalid_flag_msg = "A watchlist flag was provided for the recommend mode. Valid recommend mode flags: ['-g', '--genres', '-ms', '--min-score', '-me', '--max-episodes', '-f', '--formats', '-s', '--status']"
-        return print(invalid_flag_msg)
+        return print(INVALID_RECOMMEND_FLAG_MSG)
     get_recommended_anime(
         db=db,
         genres=args.genres,
@@ -70,8 +88,7 @@ def handle_recommend(db, args):
 
 def handle_watch_list(db, args):
     if args.genres or args.formats or args.status or args.min_score or args.max_episodes:
-        invalid_flag_msg = "A recommend flag was provided for the watchlist mode. Valid watchlist mode flags: ['-l', '--list', '-a', '--add', '-u', '--update', '-d', '--delete']"
-        return print(invalid_flag_msg)
+        return print(INVALID_WATCH_LIST_FLAG_MSG)
 
     if args.list:
         view_watch_list(db)
@@ -101,12 +118,12 @@ def get_recommended_anime(db, genres, min_score, max_episodes, formats, status):
     response = paginated_response(query, filtered_variables)
 
     if len(response) == 0:
-        return print("No anime found with current options. Try narrowing down the criteria given")
+        return print(NO_RECOMMENDATIONS_FOUND_MSG)
 
     filtered_response = filter_out_watched_anime(db, response)
 
     if len(filtered_response) == 0:
-        return print("All anime that match the given criteria are included in your watch list")
+        return print(NO_UNIQUE_RECOMMENDATION_FOUND_MSG)
 
     random_anime = get_random_anime(filtered_response)
     recommended_anime = formatted_recommended_anime(random_anime)
@@ -124,58 +141,7 @@ def get_recommended_anime(db, genres, min_score, max_episodes, formats, status):
         elif add_answer in ["n", "no"]:
             return
         else:
-            print(
-                "Invalid option given. Valid options: ['y', 'yes', 'n', 'no']")
-
-
-def filter_out_watched_anime(db, all_anime):
-    watch_list_anime_ids = [row[2] for row in db.execute(watch_list_query)]
-
-    return list(filter(lambda anime: anime["id"] not in watch_list_anime_ids, all_anime))
-
-
-def delete_anime_in_watch_list(db):
-    anime = get_all_watch_list_anime(db)
-
-    if len(anime) == 0:
-        return print("No watch list entries to delete")
-    
-    view_watch_list_simple(anime)
-
-    while True:
-        error_msg = "Please provide a valid option"
-
-        try:
-            anime_num = int(
-                input("Which of the following entries would you like to delete? ").strip())
-
-            if anime_num > len(anime) or anime_num <= 0:
-                print(error_msg)
-                continue
-
-            break
-        except ValueError:
-            print(error_msg)
-
-    while True:
-        entry_to_delete = anime[anime_num - 1]
-        anime_name = entry_to_delete[1]
-
-        confirmed_response = input(f"Are you sure you want to delete your entry for {
-                                   anime_name}? ").lower()
-
-        if confirmed_response in ["y", "yes"]:
-            db.execute(delete_query, [str(entry_to_delete[0])])
-            db.commit()
-
-            print(f"Successfully deleted {anime_name} from your watch list")
-            break
-        elif confirmed_response in ["n", "no"]:
-            print(f"Cancelling delete process")
-            break
-        else:
-            print("Invalid response given. Cancelling delete process")
-            break
+            print(INVALID_CONFIRMATION_MSG)
 
 
 def view_watch_list(db):
@@ -183,7 +149,7 @@ def view_watch_list(db):
     anime = [row for row in cursor]
 
     if len(anime) == 0:
-        return print("Watchlist is currently empty")
+        return print(WATCH_LIST_EMPTY_MSG)
 
     anime_details = [get_single_anime(row[2]) for row in anime]
     table_headers = ["", "Name", "Status", "Score",
@@ -194,91 +160,6 @@ def view_watch_list(db):
     ]
 
     print(tabulate(table_records, headers=table_headers, tablefmt="presto"))
-
-
-def get_all_watch_list_anime(db):
-    cursor = db.execute(watch_list_query)
-    
-    return [row for row in cursor]
-
-
-def view_watch_list_simple(records):
-    table_records = [table_record_for_viewing(index, row) for index, row in enumerate(records)]
-    table_headers = ["", "Name", "Status", "Score"]
-    
-    print(tabulate(table_records, headers=table_headers,
-          tablefmt="presto"), end="\n\n")
-    
-
-def update_anime_in_watch_list(db):
-    anime = get_all_watch_list_anime(db)
-
-    if len(anime) == 0:
-        return print("No watch list entries to update")
-    
-    view_watch_list_simple(anime)
-
-    while True:
-        error_msg = "Please provide a valid option"
-
-        try:
-            anime_num = int(
-                input("Which of the following entries would you like to update? ").strip())
-
-            if anime_num > len(anime) or anime_num <= 0:
-                print(error_msg)
-                continue
-
-            break
-        except ValueError:
-            print(error_msg)
-
-    while True:
-        column = input(
-            "What property would you like to update? ").strip().upper()
-
-        if column not in VALID_PROPERTIES:
-            print(
-                f"Invalid property provided. Valid Properties: {list(map(lambda property: property.lower(), VALID_PROPERTIES))}")
-            continue
-
-        break
-
-    while True:
-        new_value = input(f"New value for {column.lower()}: ").strip()
-
-        match column:
-            case "STATUS":
-                new_value = new_value.upper()
-
-                if new_value not in VALID_STATUSES:
-                    print(
-                        f"Invalid status provided. Valid statuses: {list(map(lambda status: status.lower(), VALID_STATUSES))}")
-                    continue
-            case "SCORE":
-                error_msg = "Invalid Score Provided"
-
-                try:
-                    new_value = int(new_value)
-
-                    if new_value > 100 or new_value < 0:
-                        print(error_msg)
-                        continue
-                except ValueError:
-                    print(error_msg)
-
-        break
-
-    print()
-
-    anime_to_update = anime[anime_num - 1]
-
-    db.execute(update_query.format(column=column.lower()),
-               (new_value, anime_to_update[0]))
-    db.commit()
-
-    print(
-        f"Successfully updated {anime_to_update[1]}'s {column.lower()} to {new_value}")
 
 
 def add_anime_to_watch_list(db):
@@ -306,7 +187,7 @@ def add_anime_to_watch_list(db):
         break
 
     while True:
-        error_msg = "Please provide a valid option"
+        error_msg = INVALID_OPTION_MSG
 
         try:
             anime_index = int(input(
@@ -327,11 +208,10 @@ def add_anime_to_watch_list(db):
         if status in VALID_STATUSES:
             break
 
-        print(
-            f"Invalid status provided. Valid statuses: {list(map(lambda status: status.lower(), VALID_STATUSES))}")
+        print(INVALID_STATUS_MSG)
 
     while True:
-        error_msg = "Invalid Score Provided"\
+        error_msg = INVALID_SCORE_MSG
 
         try:
             score = int(
@@ -357,6 +237,118 @@ def add_anime_to_watch_list(db):
     db.commit()
 
     print(f"Added {title} to watch list")
+
+
+def delete_anime_in_watch_list(db):
+    anime = get_all_watch_list_anime(db)
+
+    if len(anime) == 0:
+        return print(WATCH_LIST_EMPTY_MSG)
+
+    view_watch_list_simple(anime)
+
+    while True:
+        error_msg = INVALID_OPTION_MSG
+
+        try:
+            anime_num = int(
+                input("Which of the following entries would you like to delete? ").strip())
+
+            if anime_num > len(anime) or anime_num <= 0:
+                print(error_msg)
+                continue
+
+            break
+        except ValueError:
+            print(error_msg)
+
+    while True:
+        entry_to_delete = anime[anime_num - 1]
+        anime_name = entry_to_delete[1]
+
+        confirmed_response = input(f"Are you sure you want to delete your entry for {
+                                   anime_name}? ").lower()
+
+        if confirmed_response in ["y", "yes"]:
+            db.execute(delete_query, (entry_to_delete[0],))
+            db.commit()
+
+            print(f"Successfully deleted {anime_name} from your watch list")
+            break
+        elif confirmed_response in ["n", "no"]:
+            print(CANCEL_DELETE_MSG)
+            break
+        else:
+            print(INVALID_CONFIRMATION_MSG)
+
+
+def update_anime_in_watch_list(db):
+    anime = get_all_watch_list_anime(db)
+
+    if len(anime) == 0:
+        return print(WATCH_LIST_EMPTY_MSG)
+
+    view_watch_list_simple(anime)
+
+    while True:
+        error_msg = INVALID_OPTION_MSG
+
+        try:
+            anime_num = int(
+                input("Which of the following entries would you like to update? ").strip())
+
+            if anime_num > len(anime) or anime_num <= 0:
+                print(error_msg)
+                continue
+
+            break
+        except ValueError:
+            print(error_msg)
+
+    while True:
+        column = input(
+            "What property would you like to update? ").strip().upper()
+
+        if column not in VALID_PROPERTIES:
+            print(INVALID_PROPERTIES_MSG)
+            continue
+
+        break
+
+    while True:
+        new_value = input(f"New value for {column.lower()}: ").strip()
+
+        match column:
+            case "STATUS":
+                new_value = new_value.upper()
+
+                if new_value not in VALID_STATUSES:
+                    print(INVALID_STATUS_MSG)
+                    continue
+            case "SCORE":
+                error_msg = INVALID_SCORE_MSG
+
+                try:
+                    new_value = int(new_value)
+
+                    if new_value > 100 or new_value < 0:
+                        print(error_msg)
+                        continue
+                except ValueError:
+                    print(error_msg)
+
+        break
+
+    print()
+
+    anime_to_update = anime[anime_num - 1]
+
+    db.execute(update_query.format(column=column.lower()),
+               (new_value, anime_to_update[0]))
+    db.commit()
+
+    print(
+        f"Successfully updated {anime_to_update[1]}'s {column.lower()} to {new_value}")
 
 
 if __name__ == "__main__":
