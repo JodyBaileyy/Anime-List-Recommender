@@ -53,6 +53,7 @@ VALID_FORMATS = [
 URL = 'https://graphql.anilist.co'
 
 WATCH_LIST_EMPTY_MSG = "Watchlist is currently empty"
+MULTIPLE_FLAGS_ERR_MSG = "Multiple flags added for the watchlist mode. Only one flag is allowed"
 NO_RECOMMENDATIONS_FOUND_MSG = "No anime found with current options. Try narrowing down the criteria given"
 NO_UNIQUE_RECOMMENDATION_FOUND_MSG = "All anime that match the given criteria are included in your watch list"
 CANCEL_DELETE_MSG = "Cancelling delete process"

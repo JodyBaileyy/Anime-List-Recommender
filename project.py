@@ -20,7 +20,8 @@ from constants import (
     INVALID_SCORE_MSG,
     NO_RECOMMENDATIONS_FOUND_MSG,
     NO_UNIQUE_RECOMMENDATION_FOUND_MSG,
-    CANCEL_DELETE_MSG
+    CANCEL_DELETE_MSG,
+    MULTIPLE_FLAGS_ERR_MSG
 )
 from helpers import (
     get_single_anime,
@@ -63,7 +64,7 @@ def main():
                         help="recommend: the status of the anime")
 
     args = parser.parse_args()
-
+    
     match args.mode:
         case "watchlist":
             handle_watch_list(conn, args)
@@ -89,6 +90,8 @@ def handle_recommend(db, args):
 def handle_watch_list(db, args):
     if args.genres or args.formats or args.status or args.min_score or args.max_episodes:
         return print(INVALID_WATCH_LIST_FLAG_MSG)
+    elif len(args._get_kwargs()) > 2:
+        return print(MULTIPLE_FLAGS_ERR_MSG)
 
     if args.list:
         view_watch_list(db)
