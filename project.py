@@ -43,7 +43,7 @@ def main():
     parser = argparse.ArgumentParser(
         prog="WatchListRecommender", description="Add / Update your own anime watch list & reccommend new anime to watch")
     parser.add_argument("mode", choices=[
-                        "watchlist", "recommend"], help="The feature mode you'd like to access", metavar="mode")
+                        "watchlist", "recommend"], help="The feature mode you'd like to access", metavar="mode {watchlist,recommend}")
     parser.add_argument("-l", "--list", action="store_true",
                         help="watchlist: view your currentl watch list")
     parser.add_argument("-a", "--add", action="store_true",
