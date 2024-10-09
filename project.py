@@ -89,7 +89,7 @@ def handle_recommend(db, args):
 
 def handle_watch_list(db, args):
     # The first arg of args._get_kwargs() is the argument's name and the second is the value of the argument
-    argument_count = list(filter(lambda argument: argument[1] not in [False, None], args._get_kwargs()))
+    argument_count = len(list(filter(lambda argument: argument[1] not in [False, None], args._get_kwargs())))
     
     if args.genres or args.formats or args.status or args.min_score or args.max_episodes:
         return print(INVALID_WATCH_LIST_FLAG_MSG)
