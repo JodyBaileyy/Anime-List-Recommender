@@ -130,7 +130,7 @@ def get_random_anime(list_of_anime):
 
 def format_record_for_watch_list(anime, anime_details, index):
     return [
-        index,
+        index + 1,
         anime[1],
         formatted_status(anime[4]),
         formatted_score(anime[3]),
