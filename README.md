@@ -2,7 +2,7 @@
 
 Final Project for CS50P course
 Created by Jody Bailey
-[YouTube video for final project]()
+[YouTube video for final project](https://youtu.be/ii_9hP99ChY?feature=shared)
 
 ## What Is This Project?
 
